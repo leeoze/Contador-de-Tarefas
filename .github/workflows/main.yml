@@ -1,0 +1,27 @@
+# Nome do workflow
+name: Papeline CI/CD
+# Define quando o pipeline será iniciado
+on: 
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  
+jobs:
+  # Primeiro job: build
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: checkout do código
+      - uses: actions/checkout@v5
+      
+      - name: Instalação do Node
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Instalar as dependencias 
+      - run: npm install       
+      - name: Rodar o build
+      - run: npm run build
