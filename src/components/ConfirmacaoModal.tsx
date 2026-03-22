@@ -23,7 +23,7 @@ export function ConfirmacaoModal({
         <p id="modal-titulo" className="modal-pergunta">
           Excluir tarefa?
         </p>
-        <p className="modal-tarefa">"{titulo}"</p>
+        <p className="modal-tarefa">&quot;{titulo}&quot;</p>
         <div className="modal-acoes">
           <button
             onClick={onCancelar}
