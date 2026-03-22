@@ -17,6 +17,10 @@ on:
     branches:
       - main
 
+# Força o uso do Node.js 24 nas actions, eliminando o aviso de depreciação
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  
 # ------------------------------------------------------------
 # PERMISSÕES GLOBAIS
 # Necessário para o GitHub Actions escrever no GitHub Pages.
