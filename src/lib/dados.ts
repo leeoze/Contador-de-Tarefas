@@ -1,9 +1,9 @@
 import { Tarefa } from "@/types/tarefa";
 
 const tarefasIniciais: Tarefa[] = [
-  { id: "1", titulo: "Estudar Next.js 15", concluida: false },
-  { id: "2", titulo: "Criar componentes reutilizáveis", concluida: true },
-  { id: "3", titulo: "Escrever testes unitários", concluida: false },
+  { id: "1", titulo: "Estudar", concluida: false },
+  { id: "2", titulo: "Beber água", concluida: true },
+  { id: "3", titulo: "Pagar boleto", concluida: false },
 ];
 
 export async function buscarTarefas(): Promise<Tarefa[]> {
