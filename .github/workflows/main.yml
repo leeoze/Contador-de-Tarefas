@@ -1,33 +1,30 @@
 # ============================================================
-# Pipeline CI — Contador de Tarefas
+# PIPELINE ÚNICO — CI + CD (Next.js + GitHub Pages)
 # ============================================================
 
 name: CI/CD — Contador de Tarefas
 
 # ------------------------------------------------------------
-# GATILHOS: quando esta pipeline será executada
-# - push na branch main: executa CI + CD (deploy)
-# - pull_request para main: executa só CI (sem deploy)
+# GATILHOS
+# - push na main → roda CI + CD (deploy)
+# - pull_request → roda apenas CI
 # ------------------------------------------------------------
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
   pull_request:
-    branches:
-      - main
+    branches: ["main"]
+  workflow_dispatch:
 
-# Força o uso do Node.js 24 nas actions, eliminando o aviso de depreciação
+# ------------------------------------------------------------
+# VARIÁVEIS DE AMBIENTE
+# ------------------------------------------------------------
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  
+
 # ------------------------------------------------------------
-# PERMISSÕES GLOBAIS
-# Necessário para o GitHub Actions escrever no GitHub Pages.
-# "contents: read"  → lê o código do repositório
-# "pages: write"    → publica no GitHub Pages
-# "id-token: write" → autentica o deploy com OIDC (sem senha)
-# Fonte: https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+# PERMISSÕES
+# Necessárias para deploy no GitHub Pages
 # ------------------------------------------------------------
 permissions:
   contents: read
@@ -36,79 +33,111 @@ permissions:
 
 # ------------------------------------------------------------
 # CONCORRÊNCIA
-# Garante que só um deploy rode por vez.
-# Se um novo push chegar enquanto um deploy está em andamento,
-# o deploy em andamento NÃO é cancelado (evita deploy quebrado).
-# Fonte: https://docs.github.com/en/actions/using-jobs/using-concurrency
+# Evita múltiplos deploys simultâneos
 # ------------------------------------------------------------
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 # ============================================================
-# JOBS
+# JOB ÚNICO (PIPELINE LINEAR)
 # ============================================================
 jobs:
-
-  # ----------------------------------------------------------
-  # JOB 1: CI — Integração Contínua
-  # Roda em todo push e pull_request para a branch main.
-  # Valida qualidade do código antes de qualquer deploy.
-  # ----------------------------------------------------------
-  ci:
-    name: CI — Lint, Testes e Build
-    runs-on: ubuntu-latest  # Máquina virtual Linux fornecida pelo GitHub
+  pipeline:
+    name: CI + Build + Deploy
+    runs-on: ubuntu-latest
 
     steps:
 
-      # Passo 1: Baixa o código do repositório para a máquina virtual
+      # ------------------------------------------------------
+      # CHECKOUT
+      # ------------------------------------------------------
       - name: Checkout do código
         uses: actions/checkout@v4
-        # Fonte: https://github.com/actions/checkout
 
-      # Passo 2: Instala e configura o Node.js
-      # "cache: npm" guarda o cache do npm entre execuções,
-      # acelerando a instalação nas próximas vezes.
+      # ------------------------------------------------------
+      # DETECTAR GERENCIADOR (npm ou yarn)
+      # ------------------------------------------------------
+      - name: Detectar package manager
+        id: detect-package-manager
+        run: |
+          if [ -f "${{ github.workspace }}/yarn.lock" ]; then
+            echo "manager=yarn" >> $GITHUB_OUTPUT
+            echo "command=install" >> $GITHUB_OUTPUT
+            echo "runner=yarn" >> $GITHUB_OUTPUT
+          elif [ -f "${{ github.workspace }}/package.json" ]; then
+            echo "manager=npm" >> $GITHUB_OUTPUT
+            echo "command=ci" >> $GITHUB_OUTPUT
+            echo "runner=npx --no-install" >> $GITHUB_OUTPUT
+          else
+            echo "Nenhum package manager encontrado"
+            exit 1
+          fi
+
+      # ------------------------------------------------------
+      # NODE.JS
+      # ------------------------------------------------------
       - name: Configurar Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-        
+          cache: ${{ steps.detect-package-manager.outputs.manager }}
 
-      # Passo 3: Instala as dependências do projeto
-      # "npm ci" é preferível ao "npm install" em pipelines:
-      # - usa exatamente as versões do package-lock.json
-      # - falha se houver divergência 
-      
-      - name: Instalar dependências (npm ci)
-        run: npm install
+      # ------------------------------------------------------
+      # CACHE DO NEXT.JS
+      # ------------------------------------------------------
+      - name: Restaurar cache do Next.js
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
 
-      # Passo 4: Executa o linter (ESLint via next lint)
-      # Verifica erros de código sem precisar executar a aplicação.
-      # O script "lint" deve existir no package.json: "next lint"
-      - name: Rodar lint (npm run lint)
+      # ------------------------------------------------------
+      # INSTALAÇÃO
+      # ------------------------------------------------------
+      - name: Instalar dependências
+        run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
+
+      # ------------------------------------------------------
+      # CI — QUALIDADE DE CÓDIGO
+      # ------------------------------------------------------
+
+      - name: Rodar lint
         run: npm run lint
 
-      # Passo 5: Executa todos os testes unitários com Jest
-      # A flag CI=true faz o Jest não abrir o modo interativo.
-      - name: Rodar testes 
+      - name: Rodar testes
         run: npm test
         env:
           CI: true
 
-      # Passo 6: Gera o build de produção da aplicação
-      - name: Build de produção (npm run build)
-        run: npm run build
+      # ------------------------------------------------------
+      # BUILD
+      # ------------------------------------------------------
+      - name: Configurar GitHub Pages (Next.js)
+        if: github.event_name == 'push'
+        uses: actions/configure-pages@v5
+        with:
+          static_site_generator: next
 
-      # Passo 7 (só no CD): Prepara o artefato para o GitHub Pages
-      # Só executa em push na main (não em pull_request).
-      - name: Preparar artefato para GitHub Pages
-        if: github.event_name == 'push' && github.ref == 'main'
+      - name: Build da aplicação
+        run: ${{ steps.detect-package-manager.outputs.runner }} next build
+
+      # ------------------------------------------------------
+      # UPLOAD DO ARTEFATO (SÓ NO PUSH)
+      # ------------------------------------------------------
+      - name: Upload do artefato
+        if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out  
-          
-  # ----------------------------------------------------------
+          path: ./out
 
-  
+      # ------------------------------------------------------
+      # DEPLOY (CD)
+      # Só executa em push na branch main
+      # ------------------------------------------------------
+      - name: Deploy para GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: deployment
+        uses: actions/deploy-pages@v4
