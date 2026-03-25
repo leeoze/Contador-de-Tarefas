@@ -1,5 +1,5 @@
 # ============================================================
-# Pipeline CI/CD — Contador de Tarefas
+# Pipeline CI — Contador de Tarefas
 # ============================================================
 
 name: CI/CD — Contador de Tarefas
@@ -110,34 +110,5 @@ jobs:
           path: ./out  
           
   # ----------------------------------------------------------
-  # JOB 2: CD — Deploy para GitHub Pages
-  # Só executa após o job "ci" passar com sucesso.
-  # Usa o GITHUB_TOKEN automático — não precisa configurar secret.
-  # ----------------------------------------------------------
-  deploy:
-    name: CD — Deploy para GitHub Pages
-    runs-on: ubuntu-latest
 
-    # Este job só roda se:
-    # 1. O job "ci" terminou com sucesso
-    # 2. O push foi na branch main
-    needs: ci
-    if: github.event_name == 'push' && github.ref == 'main'
-
-    # Ambiente do GitHub Pages — aparece na aba "Environments" do repositório
-    # e mostra a URL pública do site após o deploy.
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-
-      # Faz o deploy do artefato gerado pelo job "ci" para o GitHub Pages.
-      # O GITHUB_TOKEN é gerado automaticamente pelo GitHub Actions —
-      # não é necessário criar ou configurar nenhum secret manualmente.
-      # Fonte: https://github.com/actions/deploy-pages
-      - name: Publicar no GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        # O GITHUB_TOKEN é usado automaticamente via permissões declaradas no topo.
-        # Fonte: https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+  
