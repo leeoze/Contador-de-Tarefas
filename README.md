@@ -2,6 +2,12 @@
 
 Aplicação de gerenciamento de tarefas construída com Next.js 15, TypeScript e testes automatizados.
 
+---
+
+Teste app online: 
+<a href="https://leeoze.github.io/Contador-de-Tarefas/">Contador de Tarefas</a>
+
+---
 ## Funcionalidades
 
 - Listar tarefas carregadas do servidor
@@ -17,15 +23,23 @@ Aplicação de gerenciamento de tarefas construída com Next.js 15, TypeScript e
 - **Jest** + **Testing Library** para testes
 
 ## Instalação
+
+### Clonar repositório
+
 ```bash
 git clone https://github.com/leeoze/Contador-de-Tarefas.git
-cd task-app
+```
+### Acessar a pasta
+```
+cd Contador-de-Tarefas
+```
+### Instalar dependências
+```
 npm install
 ```
 
-## Como usar
+## Como rodar
 ```bash
-# Rodar em desenvolvimento
 npm run dev
 ```
 
